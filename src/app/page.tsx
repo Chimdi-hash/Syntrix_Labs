@@ -13,7 +13,7 @@ const daoAbi = parseAbi([
 
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null);
-  const [contractAddress, setContractAddress] = useState("");
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000"; // Using hardcoded or env address
   const [proposals, setProposals] = useState<any[]>([]);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -45,6 +45,11 @@ export default function Home() {
     } else {
       alert("Please install MetaMask or another Web3 wallet.");
     }
+  };
+
+  const disconnectWallet = () => {
+    setAccount(null);
+    setWalletClient(null);
   };
 
   const fetchProposals = async () => {
@@ -123,42 +128,29 @@ export default function Home() {
   return (
     <main className={styles.container}>
       <header className={`${styles.header} animate-slide-up`}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', marginBottom: '20px' }}>
+        <h1 className={styles.title}>Syntrix Labs</h1>
+        <div>
           {!account ? (
             <button className="btn-primary" onClick={connectWallet}>Connect Wallet</button>
           ) : (
-            <div className="btn-secondary">
-              Connected: {account.slice(0, 6)}...{account.slice(-4)}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span className="btn-secondary" style={{ cursor: 'default' }}>
+                {account.slice(0, 6)}...{account.slice(-4)}
+              </span>
+              <button className="btn-secondary" onClick={disconnectWallet}>Disconnect</button>
             </div>
           )}
         </div>
-        <h1 className={styles.title}>Syntrix Labs</h1>
-        <p className={styles.subtitle}>
-          AI-Governed DAO powered by GenLayer. Proposals are evaluated by Intelligent Contracts for constitutional alignment.
-        </p>
       </header>
+
+      <p className={`${styles.subtitle} animate-slide-up`}>
+        AI-Governed DAO powered by GenLayer. Proposals are evaluated by Intelligent Contracts for constitutional alignment.
+      </p>
 
       <div className={styles.dashboard}>
         {/* Sidebar / Stats */}
         <div className={`glass-panel ${styles.sidebarCard} animate-float`}>
-          <div className={styles.inputGroup}>
-            <span className={styles.statLabel}>Contract Address (GenLayer Studio)</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input 
-                className={styles.input} 
-                style={{ flex: 1 }}
-                type="text" 
-                placeholder="0x..." 
-                value={contractAddress}
-                onChange={(e) => setContractAddress(e.target.value)}
-              />
-              <button className="btn-secondary" onClick={fetchProposals} disabled={loading}>
-                {loading ? '...' : 'Load'}
-              </button>
-            </div>
-          </div>
-          
-          <div className={styles.stat} style={{ marginTop: '20px' }}>
+          <div className={styles.stat}>
             <span className={styles.statLabel}>Active Proposals</span>
             <span className={styles.statValue}>{proposals.length}</span>
           </div>
