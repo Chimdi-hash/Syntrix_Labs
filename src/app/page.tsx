@@ -143,9 +143,13 @@ export default function Home() {
         </div>
       </header>
 
-      <p className={`${styles.subtitle} animate-slide-up`}>
-        AI-Governed DAO powered by GenLayer. Proposals are evaluated by Intelligent Contracts for constitutional alignment.
-      </p>
+      <div className={`${styles.hero} animate-slide-up`}>
+        <div className={styles.heroLayer1}>AI-Governed DAO</div>
+        <div className={styles.heroLayer2}>Powered by GenLayer</div>
+        <div className={styles.heroLayer3}>
+          Proposals are evaluated by Intelligent Contracts for constitutional alignment.
+        </div>
+      </div>
 
       <div className={styles.dashboard}>
         {/* Sidebar / Stats */}
