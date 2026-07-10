@@ -1,8 +1,8 @@
 import json
 import urllib.parse
-import genlayer as gl
+from genlayer import *
 
-@gl.contract
+@genlayer.contract
 class DAOEvaluator:
     def __init__(self):
         # Define the DAO's core constitution rules
@@ -15,7 +15,7 @@ class DAOEvaluator:
         self.proposals = {}
         self.proposal_counter = 0
 
-    @gl.public.write
+    @genlayer.method
     def submit_proposal(self, title: str, description: str) -> int:
         proposal_id = self.proposal_counter
         self.proposals[proposal_id] = {
@@ -27,7 +27,7 @@ class DAOEvaluator:
         self.proposal_counter += 1
         return proposal_id
 
-    @gl.public.write
+    @genlayer.method
     def evaluate_proposal(self, proposal_id: int) -> str:
         if proposal_id not in self.proposals:
             raise Exception("Proposal not found")
@@ -41,7 +41,7 @@ class DAOEvaluator:
         Proposal Title: {proposal['title']}
         Proposal Description: {proposal['description']}
         """
-        subject = gl.llm.generate(extraction_prompt).strip()
+        subject = genlayer.llm.generate(extraction_prompt).strip()
         
         evidence = "No specific external evidence fetched."
         if subject.lower() != "none" and subject:
@@ -50,13 +50,13 @@ class DAOEvaluator:
             url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exsentences=4&explaintext=1&titles={safe_subject}&format=json"
             
             def fetch_wiki() -> str:
-                response = gl.nondet.web.get(url)
+                response = genlayer.nondet.web.get(url)
                 return response.body.decode("utf-8")
             
             try:
                 # Ensuring consensus using the Equivalence Principle
-                # We use gl.eq_principle.strict_eq to make sure validators agree on the fetched HTML/JSON
-                raw_data = gl.eq_principle.strict_eq(fetch_wiki)
+                # We use genlayer.eq_principle.strict_eq to make sure validators agree on the fetched HTML/JSON
+                raw_data = genlayer.eq_principle.strict_eq(fetch_wiki)
                 
                 # Parse Wikipedia JSON to get the extract
                 data = json.loads(raw_data)
@@ -85,7 +85,7 @@ class DAOEvaluator:
         - "reasoning": A short explanation referencing the constitution and the external evidence.
         """
         
-        response = gl.llm.generate(prompt)
+        response = genlayer.llm.generate(prompt)
         
         try:
             result = json.loads(response)
@@ -100,7 +100,7 @@ class DAOEvaluator:
             proposal["analysis"] = "Failed to parse AI consensus"
             return str(e)
 
-    @gl.public.view
+    @genlayer.view
     def get_proposal(self, proposal_id: int) -> str:
         if proposal_id not in self.proposals:
             raise Exception("Proposal not found")
