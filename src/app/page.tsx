@@ -56,7 +56,7 @@ export default function Home() {
       console.log("Failed to fetch proposals, this might be normal if the contract is empty or address is wrong.");
     }
     setLoading(false);
-  }, [readClient, contractAddress]);
+  }, [readClient, contractAddress, account]);
 
   useEffect(() => {
     // Only fetch and poll if the user has connected their wallet
