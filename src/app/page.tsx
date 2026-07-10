@@ -217,9 +217,9 @@ export default function Home() {
                     color: prop.status === 'Approved' ? 'var(--accent)' : 
                            prop.status === 'Rejected' ? '#dc3545' : '#ffc107'
                   }}>
-                    GenVM Analysis
+                    GenVM Analysis & Web Fact-Check
                   </h4>
-                  <p style={{ fontSize: '0.875rem', color: '#d4d4d4' }}>{prop.analysis}</p>
+                  <p style={{ fontSize: '0.875rem', color: '#d4d4d4', whiteSpace: 'pre-wrap' }}>{prop.analysis}</p>
                 </div>
               )}
               
