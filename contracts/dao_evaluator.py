@@ -1,3 +1,4 @@
+# { "Depends": "py-genlayer:test" }
 import json
 import urllib.parse
 from genlayer import *
