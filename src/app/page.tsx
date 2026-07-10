@@ -37,7 +37,12 @@ export default function Home() {
              functionName: 'get_proposal',
              args: [i]
           });
-          fetched.push({ id: i, ...JSON.parse(propStr as string) });
+          const prop = JSON.parse(propStr as string);
+          
+          // Only show proposals submitted by the connected wallet
+          if (account && prop.submitter === account.toLowerCase()) {
+            fetched.push({ id: i, ...prop });
+          }
           i++;
         } catch (e) {
           // Breaks the loop when we hit an index that doesn't exist yet

@@ -26,7 +26,8 @@ class DAOEvaluator(gl.Contract):
             "title": title,
             "description": description,
             "status": "Pending",
-            "analysis": ""
+            "analysis": "",
+            "submitter": str(gl.message.sender_address).lower()
         })
         self.proposal_counter += 1
         return proposal_id
