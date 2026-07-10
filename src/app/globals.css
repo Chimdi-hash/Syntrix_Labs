@@ -15,12 +15,27 @@ html, body {
 
 body {
   color: var(--foreground);
-  background: linear-gradient(135deg, var(--background-start) 0%, var(--background-end) 100%);
-  background-attachment: fixed;
+  background-color: var(--background-end);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('/IMG_0066.jpeg');
+  background-size: cover;
+  background-position: center;
+  filter: blur(15px) brightness(0.6);
+  z-index: -1;
+  transform: scale(1.1);
 }
 
 * {
