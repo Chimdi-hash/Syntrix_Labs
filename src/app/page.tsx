@@ -55,6 +55,11 @@ export default function Home() {
   useEffect(() => {
     if (readClient && contractAddress) {
       fetchProposals();
+      // Auto-poll every 5 seconds to catch consensus completion
+      const interval = setInterval(() => {
+        fetchProposals();
+      }, 5000);
+      return () => clearInterval(interval);
     }
   }, [readClient, contractAddress, fetchProposals]);
 
