@@ -13,6 +13,7 @@ export default function Home() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [loading, setLoading] = useState(false);
+  const [txMessage, setTxMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   
   const [readClient, setReadClient] = useState<any>(null);
   const [writeClient, setWriteClient] = useState<any>(null);
@@ -103,41 +104,47 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newDesc || !writeClient || !contractAddress) {
-      alert("Please connect wallet, enter contract address, and fill out the proposal.");
+      setTxMessage({ type: 'error', text: "Please connect wallet, enter contract address, and fill out the proposal." });
       return;
     }
     
     try {
+      setTxMessage(null);
       const txHash = await writeClient.writeContract({
         address: contractAddress,
         functionName: 'submit_proposal',
         args: [newTitle, newDesc],
         value: BigInt(0),
       });
-      alert(`Transaction submitted! Hash: ${txHash}`);
+      setTxMessage({ type: 'success', text: `Proposal submitted! Waiting for confirmation...` });
       setNewTitle("");
       setNewDesc("");
-      setTimeout(fetchProposals, 5000); // refresh after a delay
-    } catch (err) {
-      console.error(err);
-      alert("Transaction failed");
+      setTimeout(() => fetchProposals(true), 3000);
+      setTimeout(() => setTxMessage(null), 8000);
+    } catch (error) {
+      console.error(error);
+      setTxMessage({ type: 'error', text: "Error submitting proposal." });
+    } finally {
+      setLoading(false);
     }
   };
 
   const evaluateProposal = async (id: number) => {
     if (!writeClient || !contractAddress) return;
     try {
+      setTxMessage(null);
       const txHash = await writeClient.writeContract({
         address: contractAddress,
         functionName: 'evaluate_proposal',
         args: [id],
         value: BigInt(0),
       });
-      alert(`Evaluation triggered! Hash: ${txHash}. GenVM is reaching consensus...`);
-      setTimeout(fetchProposals, 5000);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to trigger evaluation");
+      setTxMessage({ type: 'success', text: `Evaluation triggered! GenVM is reaching consensus...` });
+      setTimeout(() => fetchProposals(true), 3000);
+      setTimeout(() => setTxMessage(null), 8000);
+    } catch (error) {
+      console.error(error);
+      setTxMessage({ type: 'error', text: "Error triggering AI evaluation." });
     }
   };
 
@@ -195,16 +202,32 @@ export default function Home() {
                   placeholder="Proposal Title" 
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
+                  disabled={loading}
                 />
                 <textarea 
                   className={styles.textarea} 
                   placeholder="Describe your proposal in detail..." 
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
+                  disabled={loading}
                 />
-                <button type="submit" className="btn-primary" style={{ marginTop: '10px' }}>
-                  Sign & Submit
+                <button type="submit" className="btn-primary" style={{ marginTop: '10px' }} disabled={loading}>
+                  {loading ? "Submitting..." : "Sign & Submit"}
                 </button>
+                
+                {txMessage && (
+                  <div style={{
+                    marginTop: '15px', 
+                    padding: '10px', 
+                    borderRadius: '8px', 
+                    fontSize: '0.85rem',
+                    backgroundColor: txMessage.type === 'success' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+                    color: txMessage.type === 'success' ? '#2ecc71' : '#dc3545',
+                    border: `1px solid ${txMessage.type === 'success' ? '#2ecc71' : '#dc3545'}`
+                  }}>
+                    {txMessage.text}
+                  </div>
+                )}
               </form>
             </div>
 
