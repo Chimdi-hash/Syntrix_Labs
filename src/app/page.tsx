@@ -53,7 +53,8 @@ export default function Home() {
   }, [readClient, contractAddress]);
 
   useEffect(() => {
-    if (readClient && contractAddress) {
+    // Only fetch and poll if the user has connected their wallet
+    if (readClient && contractAddress && account) {
       fetchProposals();
       // Auto-poll every 5 seconds silently to catch consensus completion
       const interval = setInterval(() => {
@@ -61,7 +62,7 @@ export default function Home() {
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [readClient, contractAddress, fetchProposals]);
+  }, [readClient, contractAddress, account, fetchProposals]);
 
   const connectWallet = async () => {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
@@ -162,87 +163,101 @@ export default function Home() {
       </div>
 
       <div className={styles.dashboard}>
-        {/* Sidebar / Stats */}
-        <div className={`glass-panel ${styles.sidebarCard} animate-float`}>
-          <div className={styles.stat}>
-            <span className={styles.statLabel}>Active Proposals</span>
-            <span className={styles.statValue}>{proposals.length}</span>
-          </div>
-          
-          <form className={styles.inputGroup} style={{ marginTop: 'auto' }} onSubmit={handleSubmit}>
-            <span className={styles.statLabel}>Submit Proposal</span>
-            <input 
-              className={styles.input} 
-              type="text" 
-              placeholder="Proposal Title" 
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-            />
-            <textarea 
-              className={styles.textarea} 
-              placeholder="Describe your proposal in detail..." 
-              value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
-            />
-            <button type="submit" className="btn-primary" style={{ marginTop: '10px' }}>
-              Sign & Submit
+        {!account ? (
+          <div className="glass-panel animate-slide-up" style={{ textAlign: 'center', padding: '60px', width: '100%', gridColumn: '1 / -1' }}>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '15px' }}>Wallet Connection Required</h2>
+            <p style={{ color: '#a3a3a3', marginBottom: '25px', maxWidth: '600px', margin: '0 auto 25px auto', lineHeight: '1.6' }}>
+              To view active DAO proposals, trigger AI evaluations, or submit your own proposals, you must securely connect your Web3 wallet to the GenLayer network.
+            </p>
+            <button className="btn-primary" onClick={connectWallet} style={{ margin: '0 auto', display: 'block' }}>
+              Connect Wallet to Continue
             </button>
-          </form>
-        </div>
-
-        {/* Proposals List */}
-        <div className={styles.proposalsList}>
-          {proposals.length === 0 && !loading && (
-            <div className={`glass-panel ${styles.proposalCard}`} style={{ textAlign: 'center', padding: '40px' }}>
-              <p style={{ color: '#a3a3a3' }}>No active proposals found. Connect your wallet to submit the first proposal to the GenVM Intelligent Contract.</p>
-            </div>
-          )}
-          
-          {loading && (
-            <div className={`glass-panel ${styles.proposalCard}`} style={{ textAlign: 'center', padding: '40px' }}>
-              <p style={{ color: '#a3a3a3' }}>Fetching from GenLayer...</p>
-            </div>
-          )}
-
-          {proposals.map((prop, idx) => (
-            <div key={prop.id} className={`glass-panel ${styles.proposalCard} animate-slide-up`} style={{ animationDelay: `${(idx + 1) * 0.1}s` }}>
-              <div className={styles.proposalHeader}>
-                <h3 className={styles.proposalTitle}>{prop.title}</h3>
-                <span className={`${styles.statusBadge} ${
-                  prop.status === 'Approved' ? styles.statusApproved : 
-                  prop.status === 'Rejected' ? styles.statusRejected : 
-                  styles.statusPending
-                }`}>
-                  {prop.status}
-                </span>
+          </div>
+        ) : (
+          <>
+            {/* Sidebar / Stats */}
+            <div className={`glass-panel ${styles.sidebarCard} animate-float`}>
+              <div className={styles.stat}>
+                <span className={styles.statLabel}>Active Proposals</span>
+                <span className={styles.statValue}>{proposals.length}</span>
               </div>
-              <p className={styles.proposalDesc}>{prop.description}</p>
               
-              {prop.analysis && (
-                <div className={styles.aiAnalysis} style={{ 
-                  borderLeftColor: prop.status === 'Approved' ? 'var(--accent)' : 
-                                  prop.status === 'Rejected' ? '#dc3545' : '#ffc107' 
-                }}>
-                  <h4 className={styles.aiAnalysisTitle} style={{
-                    color: prop.status === 'Approved' ? 'var(--accent)' : 
-                           prop.status === 'Rejected' ? '#dc3545' : '#ffc107'
-                  }}>
-                    GenVM Analysis & Web Fact-Check
-                  </h4>
-                  <p style={{ fontSize: '0.875rem', color: '#d4d4d4', whiteSpace: 'pre-wrap' }}>{prop.analysis}</p>
+              <form className={styles.inputGroup} style={{ marginTop: 'auto' }} onSubmit={handleSubmit}>
+                <span className={styles.statLabel}>Submit Proposal</span>
+                <input 
+                  className={styles.input} 
+                  type="text" 
+                  placeholder="Proposal Title" 
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                />
+                <textarea 
+                  className={styles.textarea} 
+                  placeholder="Describe your proposal in detail..." 
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                />
+                <button type="submit" className="btn-primary" style={{ marginTop: '10px' }}>
+                  Sign & Submit
+                </button>
+              </form>
+            </div>
+
+            {/* Proposals List */}
+            <div className={styles.proposalsList}>
+              {proposals.length === 0 && !loading && (
+                <div className={`glass-panel ${styles.proposalCard}`} style={{ textAlign: 'center', padding: '40px' }}>
+                  <p style={{ color: '#a3a3a3' }}>No active proposals found. Be the first to submit a proposal to the GenVM Intelligent Contract.</p>
                 </div>
               )}
               
-              <div className={styles.actions}>
-                {prop.status === 'Pending' && (
-                  <button className="btn-primary" onClick={() => evaluateProposal(prop.id)}>
-                    Trigger AI Evaluation
-                  </button>
-                )}
-              </div>
+              {loading && proposals.length === 0 && (
+                <div className={`glass-panel ${styles.proposalCard}`} style={{ textAlign: 'center', padding: '40px' }}>
+                  <p style={{ color: '#a3a3a3' }}>Fetching from GenLayer...</p>
+                </div>
+              )}
+
+              {proposals.map((prop, idx) => (
+                <div key={prop.id} className={`glass-panel ${styles.proposalCard} animate-slide-up`} style={{ animationDelay: `${(idx + 1) * 0.1}s` }}>
+                  <div className={styles.proposalHeader}>
+                    <h3 className={styles.proposalTitle}>{prop.title}</h3>
+                    <span className={`${styles.statusBadge} ${
+                      prop.status === 'Approved' ? styles.statusApproved : 
+                      prop.status === 'Rejected' ? styles.statusRejected : 
+                      styles.statusPending
+                    }`}>
+                      {prop.status}
+                    </span>
+                  </div>
+                  <p className={styles.proposalDesc}>{prop.description}</p>
+                  
+                  {prop.analysis && (
+                    <div className={styles.aiAnalysis} style={{ 
+                      borderLeftColor: prop.status === 'Approved' ? 'var(--accent)' : 
+                                      prop.status === 'Rejected' ? '#dc3545' : '#ffc107' 
+                    }}>
+                      <h4 className={styles.aiAnalysisTitle} style={{
+                        color: prop.status === 'Approved' ? 'var(--accent)' : 
+                               prop.status === 'Rejected' ? '#dc3545' : '#ffc107'
+                      }}>
+                        GenVM Analysis & Web Fact-Check
+                      </h4>
+                      <p style={{ fontSize: '0.875rem', color: '#d4d4d4', whiteSpace: 'pre-wrap' }}>{prop.analysis}</p>
+                    </div>
+                  )}
+                  
+                  <div className={styles.actions}>
+                    {prop.status === 'Pending' && (
+                      <button className="btn-primary" onClick={() => evaluateProposal(prop.id)}>
+                        Trigger AI Evaluation
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </div>
     </main>
   );
