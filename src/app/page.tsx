@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import styles from "./page.module.css";
-import { createWalletClient, custom, createPublicClient, parseAbi } from "viem";
-
-const daoAbi = parseAbi([
-  "function submit_proposal(string title, string description) returns (uint256)",
-  "function evaluate_proposal(uint256 proposal_id) returns (string)",
-  "function get_proposal(uint256 proposal_id) view returns (string)",
-  "function proposal_counter() view returns (uint256)"
-]);
+import { createClient } from "genlayer-js";
+import { studionet } from "genlayer-js/chains";
 
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null);
@@ -18,27 +12,68 @@ export default function Home() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [loading, setLoading] = useState(false);
-  const [publicClient, setPublicClient] = useState<any>(null);
-  const [walletClient, setWalletClient] = useState<any>(null);
+  
+  const [readClient, setReadClient] = useState<any>(null);
+  const [writeClient, setWriteClient] = useState<any>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).ethereum) {
-      const pClient = createPublicClient({
-        transport: custom((window as any).ethereum)
-      });
-      setPublicClient(pClient);
-    }
+    const rc = createClient({
+      chain: studionet,
+    });
+    setReadClient(rc);
   }, []);
+
+  const fetchProposals = useCallback(async () => {
+    if (!readClient || !contractAddress) return;
+    setLoading(true);
+    try {
+      const count = await readClient.readContract({
+        address: contractAddress,
+        functionName: 'proposal_counter',
+        args: [],
+      });
+      
+      const fetched = [];
+      for (let i = 0; i < Number(count); i++) {
+        const propStr = await readClient.readContract({
+           address: contractAddress,
+           functionName: 'get_proposal',
+           args: [i]
+        });
+        fetched.push({ id: i, ...JSON.parse(propStr as string) });
+      }
+      setProposals(fetched);
+    } catch (err) {
+      console.error(err);
+      console.log("Failed to fetch proposals, this might be normal if the contract is empty or address is wrong.");
+    }
+    setLoading(false);
+  }, [readClient, contractAddress]);
+
+  useEffect(() => {
+    if (readClient && contractAddress) {
+      fetchProposals();
+    }
+  }, [readClient, contractAddress, fetchProposals]);
 
   const connectWallet = async () => {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
       try {
-        const client = createWalletClient({
-          transport: custom((window as any).ethereum)
-        });
-        const [address] = await client.requestAddresses();
+        const provider = (window as any).ethereum;
+        const accounts = await provider.request({ method: 'eth_requestAccounts' });
+        const address = accounts[0];
         setAccount(address);
-        setWalletClient(client);
+        
+        const wc = createClient({
+          chain: studionet,
+          account: address,
+          provider: provider,
+        });
+        
+        // Ensure MetaMask is on studionet
+        await wc.connect("studionet");
+
+        setWriteClient(wc);
       } catch (err) {
         console.error("Failed to connect wallet", err);
       }
@@ -49,54 +84,24 @@ export default function Home() {
 
   const disconnectWallet = () => {
     setAccount(null);
-    setWalletClient(null);
-  };
-
-  const fetchProposals = async () => {
-    if (!publicClient || !contractAddress) return;
-    setLoading(true);
-    try {
-      const count = await publicClient.readContract({
-        address: contractAddress as `0x${string}`,
-        abi: daoAbi,
-        functionName: 'proposal_counter',
-      });
-      
-      const fetched = [];
-      for (let i = 0; i < Number(count); i++) {
-        const propStr = await publicClient.readContract({
-           address: contractAddress as `0x${string}`,
-           abi: daoAbi,
-           functionName: 'get_proposal',
-           args: [BigInt(i)]
-        });
-        fetched.push({ id: i, ...JSON.parse(propStr as string) });
-      }
-      setProposals(fetched);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to fetch proposals. Ensure you are on the GenLayer Studio network and the address is correct.");
-    }
-    setLoading(false);
+    setWriteClient(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newDesc || !walletClient || !contractAddress) {
+    if (!newTitle || !newDesc || !writeClient || !contractAddress) {
       alert("Please connect wallet, enter contract address, and fill out the proposal.");
       return;
     }
     
     try {
-      const { request } = await publicClient.simulateContract({
-        account: account as `0x${string}`,
-        address: contractAddress as `0x${string}`,
-        abi: daoAbi,
+      const txHash = await writeClient.writeContract({
+        address: contractAddress,
         functionName: 'submit_proposal',
-        args: [newTitle, newDesc]
+        args: [newTitle, newDesc],
+        value: 0n,
       });
-      await walletClient.writeContract(request);
-      alert("Transaction signed and submitted to GenLayer!");
+      alert(`Transaction submitted! Hash: ${txHash}`);
       setNewTitle("");
       setNewDesc("");
       setTimeout(fetchProposals, 5000); // refresh after a delay
@@ -107,17 +112,15 @@ export default function Home() {
   };
 
   const evaluateProposal = async (id: number) => {
-    if (!walletClient || !contractAddress) return;
+    if (!writeClient || !contractAddress) return;
     try {
-      const { request } = await publicClient.simulateContract({
-        account: account as `0x${string}`,
-        address: contractAddress as `0x${string}`,
-        abi: daoAbi,
+      const txHash = await writeClient.writeContract({
+        address: contractAddress,
         functionName: 'evaluate_proposal',
-        args: [BigInt(id)]
+        args: [id],
+        value: 0n,
       });
-      await walletClient.writeContract(request);
-      alert("Evaluation triggered! GenVM is reaching consensus...");
+      alert(`Evaluation triggered! Hash: ${txHash}. GenVM is reaching consensus...`);
       setTimeout(fetchProposals, 5000);
     } catch (err) {
       console.error(err);
