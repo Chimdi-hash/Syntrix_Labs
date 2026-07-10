@@ -27,20 +27,21 @@ export default function Home() {
     if (!readClient || !contractAddress) return;
     setLoading(true);
     try {
-      const count = await readClient.readContract({
-        address: contractAddress,
-        functionName: 'proposal_counter',
-        args: [],
-      });
-      
       const fetched = [];
-      for (let i = 0; i < Number(count); i++) {
-        const propStr = await readClient.readContract({
-           address: contractAddress,
-           functionName: 'get_proposal',
-           args: [i]
-        });
-        fetched.push({ id: i, ...JSON.parse(propStr as string) });
+      let i = 0;
+      while (true) {
+        try {
+          const propStr = await readClient.readContract({
+             address: contractAddress,
+             functionName: 'get_proposal',
+             args: [i]
+          });
+          fetched.push({ id: i, ...JSON.parse(propStr as string) });
+          i++;
+        } catch (e) {
+          // Breaks the loop when we hit an index that doesn't exist yet
+          break;
+        }
       }
       setProposals(fetched);
     } catch (err) {
