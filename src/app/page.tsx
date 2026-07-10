@@ -184,7 +184,7 @@ export default function Home() {
         <div className={styles.proposalsList}>
           {proposals.length === 0 && !loading && (
             <div className={`glass-panel ${styles.proposalCard}`} style={{ textAlign: 'center', padding: '40px' }}>
-              <p style={{ color: '#a3a3a3' }}>No proposals loaded. Connect wallet and enter a deployed contract address.</p>
+              <p style={{ color: '#a3a3a3' }}>No active proposals found. Connect your wallet to submit the first proposal to the GenVM Intelligent Contract.</p>
             </div>
           )}
           
