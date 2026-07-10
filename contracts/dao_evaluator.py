@@ -5,8 +5,8 @@ from genlayer import *
 
 class DAOEvaluator(gl.Contract):
     constitution: str
-    proposals: dict
-    proposal_counter: int
+    proposals: TreeMap[u256, str]
+    proposal_counter: u256
 
     def __init__(self):
         # Define the DAO's core constitution rules
@@ -16,27 +16,27 @@ class DAOEvaluator(gl.Contract):
         Article 2 (Capital Preservation): Avoid high-risk, unproven financial instruments or entities with a history of fraud/bankruptcy.
         Article 3 (Growth): Incentivize ecosystem growth and liquidity.
         """
-        self.proposals = {}
-        self.proposal_counter = 0
+        self.proposals = TreeMap()
+        self.proposal_counter = u256(0)
 
     @gl.public.write
-    def submit_proposal(self, title: str, description: str) -> int:
+    def submit_proposal(self, title: str, description: str) -> u256:
         proposal_id = self.proposal_counter
-        self.proposals[proposal_id] = {
+        self.proposals[proposal_id] = json.dumps({
             "title": title,
             "description": description,
             "status": "Pending",
             "analysis": ""
-        }
+        })
         self.proposal_counter += 1
         return proposal_id
 
     @gl.public.write
-    def evaluate_proposal(self, proposal_id: int) -> str:
+    def evaluate_proposal(self, proposal_id: u256) -> str:
         if proposal_id not in self.proposals:
             raise Exception("Proposal not found")
         
-        proposal = self.proposals[proposal_id]
+        proposal = json.loads(self.proposals[proposal_id])
         
         # 1. Extract subject for web fetch
         extraction_prompt = f"""
@@ -59,7 +59,6 @@ class DAOEvaluator(gl.Contract):
             
             try:
                 # Ensuring consensus using the Equivalence Principle
-                # We use gl.eq_principle.strict_eq to make sure validators agree on the fetched HTML/JSON
                 raw_data = gl.eq_principle.strict_eq(fetch_wiki)
                 
                 # Parse Wikipedia JSON to get the extract
@@ -98,14 +97,18 @@ class DAOEvaluator(gl.Contract):
             # Format the final analysis string for the UI
             short_evidence = (evidence[:150] + '...') if len(evidence) > 150 else evidence
             proposal["analysis"] = f"Web Fact-Check ({subject}): {short_evidence}\n\nVerdict: {result['reasoning']}"
+            
+            # Save the updated proposal back to persistent storage
+            self.proposals[proposal_id] = json.dumps(proposal)
             return json.dumps(result)
         except Exception as e:
             proposal["status"] = "Error"
             proposal["analysis"] = "Failed to parse AI consensus"
+            self.proposals[proposal_id] = json.dumps(proposal)
             return str(e)
 
     @gl.public.view
-    def get_proposal(self, proposal_id: int) -> str:
+    def get_proposal(self, proposal_id: u256) -> str:
         if proposal_id not in self.proposals:
             raise Exception("Proposal not found")
-        return json.dumps(self.proposals[proposal_id])
+        return self.proposals[proposal_id]
