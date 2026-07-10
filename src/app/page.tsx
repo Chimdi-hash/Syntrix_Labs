@@ -194,7 +194,7 @@ export default function Home() {
                 <span className={styles.statValue}>{proposals.length}</span>
               </div>
               
-              <form className={styles.inputGroup} style={{ marginTop: 'auto' }} onSubmit={handleSubmit}>
+              <form className={styles.inputGroup} style={{ marginTop: '30px' }} onSubmit={handleSubmit}>
                 <span className={styles.statLabel}>Submit Proposal</span>
                 <input 
                   className={styles.input} 
