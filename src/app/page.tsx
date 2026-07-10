@@ -24,9 +24,9 @@ export default function Home() {
     setReadClient(rc);
   }, []);
 
-  const fetchProposals = useCallback(async () => {
+  const fetchProposals = useCallback(async (isBackground = false) => {
     if (!readClient || !contractAddress) return;
-    setLoading(true);
+    if (!isBackground) setLoading(true);
     try {
       const fetched = [];
       let i = 0;
@@ -55,9 +55,9 @@ export default function Home() {
   useEffect(() => {
     if (readClient && contractAddress) {
       fetchProposals();
-      // Auto-poll every 5 seconds to catch consensus completion
+      // Auto-poll every 5 seconds silently to catch consensus completion
       const interval = setInterval(() => {
-        fetchProposals();
+        fetchProposals(true);
       }, 5000);
       return () => clearInterval(interval);
     }
