@@ -39,13 +39,14 @@ class DAOEvaluator(gl.Contract):
         proposal = json.loads(self.proposals[proposal_id])
         
         # 1. Extract subject for web fetch
-        extraction_prompt = f"""
-        Extract the main real-world entity, protocol, company, or concept from this proposal to search for on Wikipedia.
-        Return ONLY the raw subject string (e.g. 'Bitcoin', 'FTX', 'Ethereum'). If none applies, return 'None'.
-        Proposal Title: {proposal['title']}
-        Proposal Description: {proposal['description']}
-        """
-        subject = gl.llm.generate(extraction_prompt).strip()
+        def get_proposal_text() -> str:
+            return f"Proposal Title: {proposal['title']}\nProposal Description: {proposal['description']}"
+            
+        subject = gl.eq_principle.prompt_non_comparative(
+            get_proposal_text,
+            task="Extract the main real-world entity, protocol, company, or concept from this proposal to search for on Wikipedia. Return ONLY the raw subject string (e.g. 'Bitcoin', 'FTX', 'Ethereum'). If none applies, return 'None'.",
+            criteria="The result must be a short string representing the main entity extracted from the proposal text, or 'None'."
+        ).strip()
         
         evidence = "No specific external evidence fetched."
         if subject.lower() != "none" and subject:
@@ -72,26 +73,31 @@ class DAOEvaluator(gl.Contract):
                 evidence = f"Failed to fetch external evidence: {str(e)}"
         
         # 3. Final Evaluation based on Evidence
-        prompt = f"""
-        You are the AI Governor of Syntrix Labs DAO.
-        Constitution: {self.constitution}
+        def get_evaluation_context() -> str:
+            return f"""Constitution: {self.constitution}
+Proposal Title: {proposal['title']}
+Proposal Description: {proposal['description']}
+External Web Evidence on Subject '{subject}':
+{evidence}"""
         
-        Evaluate the following proposal:
-        Title: {proposal['title']}
-        Description: {proposal['description']}
+        response = gl.eq_principle.prompt_non_comparative(
+            get_evaluation_context,
+            task="Based on the Constitution and the External Web Evidence (if any), return a JSON response with two keys: 'decision' ('Approved' or 'Rejected') and 'reasoning' (a short explanation referencing the constitution and the external evidence).",
+            criteria="The result must be a valid JSON object containing exactly 'decision' (either Approved or Rejected) and 'reasoning' (string explanation)."
+        )
         
-        External Web Evidence on Subject '{subject}':
-        {evidence}
-        
-        Based on the Constitution and the External Web Evidence (if any), return a JSON response with two keys:
-        - "decision": "Approved" or "Rejected"
-        - "reasoning": A short explanation referencing the constitution and the external evidence.
-        """
-        
-        response = gl.llm.generate(prompt)
+        # Clean potential markdown from LLM response
+        clean_response = response.strip()
+        if clean_response.startswith("```json"):
+            clean_response = clean_response[7:]
+        elif clean_response.startswith("```"):
+            clean_response = clean_response[3:]
+        if clean_response.endswith("```"):
+            clean_response = clean_response[:-3]
+        clean_response = clean_response.strip()
         
         try:
-            result = json.loads(response)
+            result = json.loads(clean_response)
             proposal["status"] = result["decision"]
             
             # Format the final analysis string for the UI
