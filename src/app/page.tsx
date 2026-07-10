@@ -13,7 +13,7 @@ const daoAbi = parseAbi([
 
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null);
-  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000"; // Using hardcoded or env address
+  const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x1E53877Fd9C708483c4C287f282A1B0c6BcF4415"; // Using hardcoded or env address
   const [proposals, setProposals] = useState<any[]>([]);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
