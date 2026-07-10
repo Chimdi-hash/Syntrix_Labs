@@ -99,7 +99,7 @@ export default function Home() {
         address: contractAddress,
         functionName: 'submit_proposal',
         args: [newTitle, newDesc],
-        value: 0n,
+        value: BigInt(0),
       });
       alert(`Transaction submitted! Hash: ${txHash}`);
       setNewTitle("");
@@ -118,7 +118,7 @@ export default function Home() {
         address: contractAddress,
         functionName: 'evaluate_proposal',
         args: [id],
-        value: 0n,
+        value: BigInt(0),
       });
       alert(`Evaluation triggered! Hash: ${txHash}. GenVM is reaching consensus...`);
       setTimeout(fetchProposals, 5000);
