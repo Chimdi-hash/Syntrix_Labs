@@ -131,7 +131,7 @@ export default function Home() {
         address: contractAddress,
         functionName: 'submit_proposal',
         args: [newTitle, newDesc],
-        value: 1000000000000000000n, // 1 GEN
+        value: BigInt("1000000000000000000"), // 1 GEN
       });
       setTxMessage({ type: 'success', text: `Proposal submitted! Waiting for confirmation...` });
       setNewTitle("");
