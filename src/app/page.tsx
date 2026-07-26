@@ -14,6 +14,7 @@ export default function Home() {
   const [newDesc, setNewDesc] = useState("");
   const [loading, setLoading] = useState(false);
   const [txMessage, setTxMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [userBalance, setUserBalance] = useState<string>("0");
   
   const [readClient, setReadClient] = useState<any>(null);
   const [writeClient, setWriteClient] = useState<any>(null);
@@ -58,17 +59,33 @@ export default function Home() {
     setLoading(false);
   }, [readClient, contractAddress, account]);
 
+  const fetchBalance = useCallback(async () => {
+    if (!account) return;
+    try {
+      if (typeof window !== 'undefined' && (window as any).ethereum) {
+        const provider = (window as any).ethereum;
+        const balanceWei = await provider.request({ method: 'eth_getBalance', params: [account, "latest"] });
+        const balanceGen = parseInt(balanceWei, 16) / 1e18;
+        setUserBalance(balanceGen.toFixed(2));
+      }
+    } catch (err) {
+      console.error("Failed to fetch balance", err);
+    }
+  }, [account]);
+
   useEffect(() => {
     // Only fetch and poll if the user has connected their wallet
     if (readClient && contractAddress && account) {
       fetchProposals();
+      fetchBalance();
       // Auto-poll every 5 seconds silently to catch consensus completion
       const interval = setInterval(() => {
         fetchProposals(true);
+        fetchBalance();
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [readClient, contractAddress, account, fetchProposals]);
+  }, [readClient, contractAddress, account, fetchProposals, fetchBalance]);
 
   const connectWallet = async () => {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
@@ -114,7 +131,7 @@ export default function Home() {
         address: contractAddress,
         functionName: 'submit_proposal',
         args: [newTitle, newDesc],
-        value: BigInt(0),
+        value: 1000000000000000000n, // 1 GEN
       });
       setTxMessage({ type: 'success', text: `Proposal submitted! Waiting for confirmation...` });
       setNewTitle("");
@@ -156,7 +173,11 @@ export default function Home() {
           {!account ? (
             <button className="btn-primary" onClick={connectWallet}>Connect Wallet</button>
           ) : (
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+              <div className="glass-panel" style={{ padding: '8px 15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#a3a3a3', fontSize: '0.85rem' }}>Balance:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{userBalance} GEN</span>
+              </div>
               <span className="btn-secondary" style={{ cursor: 'default' }}>
                 {account.slice(0, 6)}...{account.slice(-4)}
               </span>
@@ -275,8 +296,19 @@ export default function Home() {
                   )}
                   
                   <div className={styles.actions}>
+                    {prop.payout_status === 'PAID' && (
+                      <span className={`${styles.payoutBadge} ${styles.badgePaid}`}>
+                        PAID
+                      </span>
+                    )}
+                    {prop.payout_status === 'BURNED' && (
+                      <span className={`${styles.payoutBadge} ${styles.badgeBurned}`}>
+                        BURNED
+                      </span>
+                    )}
+                    
                     {prop.status === 'Pending' && (
-                      <button className="btn-primary" onClick={() => evaluateProposal(prop.id)}>
+                      <button className="btn-primary" onClick={() => evaluateProposal(prop.id)} style={{ marginLeft: 'auto' }}>
                         Trigger AI Evaluation
                       </button>
                     )}

@@ -3,6 +3,11 @@ import json
 import urllib.parse
 from genlayer import *
 
+@gl.evm.contract_interface
+class _Recipient:
+    class View: pass
+    class Write: pass
+
 class DAOEvaluator(gl.Contract):
     constitution: str
     proposals: TreeMap[u256, str]
@@ -19,13 +24,18 @@ class DAOEvaluator(gl.Contract):
         self.proposals = TreeMap()
         self.proposal_counter = u256(0)
 
-    @gl.public.write
+    @gl.public.write.payable
     def submit_proposal(self, title: str, description: str) -> u256:
+        required_wei = int(1 * 10**18)
+        if gl.message.value < required_wei:
+            raise Exception("Insufficient GEN attached to submit a proposal (1 GEN required)")
+
         proposal_id = self.proposal_counter
         self.proposals[proposal_id] = json.dumps({
             "title": title,
             "description": description,
             "status": "Pending",
+            "payout_status": "Pending",
             "analysis": "",
             "submitter": str(gl.message.sender_address).lower()
         })
@@ -101,9 +111,25 @@ External Web Evidence on Subject '{subject}':
             result = json.loads(clean_response)
             proposal["status"] = result["decision"]
             
+            # Payout logic
+            if result["decision"] == "Approved":
+                proposal["payout_status"] = "PAID"
+                try:
+                    # Payout 2 GEN
+                    payable = 2.0
+                    _Recipient(Address(proposal["submitter"])).emit_transfer(value=u256(int(payable * 10**18)), on='finalized')
+                except Exception as e:
+                    proposal["analysis"] = f"Payout failed: {str(e)}\n\n"
+            else:
+                proposal["payout_status"] = "BURNED"
+            
             # Format the final analysis string for the UI
             short_evidence = (evidence[:150] + '...') if len(evidence) > 150 else evidence
-            proposal["analysis"] = f"Web Fact-Check ({subject}): {short_evidence}\n\nVerdict: {result['reasoning']}"
+            analysis_text = f"Web Fact-Check ({subject}): {short_evidence}\n\nVerdict: {result['reasoning']}"
+            if "analysis" in proposal and proposal["analysis"]:
+                proposal["analysis"] += analysis_text
+            else:
+                proposal["analysis"] = analysis_text
             
             # Save the updated proposal back to persistent storage
             self.proposals[proposal_id] = json.dumps(proposal)
