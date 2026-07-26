@@ -191,7 +191,7 @@ export default function Home() {
         <div className={styles.heroLayer1}>AI-Governed DAO</div>
         <div className={styles.heroLayer2}>Powered by GenLayer</div>
         <div className={styles.heroLayer3}>
-          Proposals are evaluated by Intelligent Contracts for constitutional alignment.
+          pay fees and get proposals evaluated by intelligent contracts for constitutional alignment
         </div>
       </div>
 

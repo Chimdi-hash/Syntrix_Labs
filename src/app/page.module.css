@@ -96,11 +96,21 @@
 }
 
 @media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    text-align: center;
+  }
+  .header > div > div {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
   .dashboard {
     grid-template-columns: 1fr;
   }
   .title {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
   }
   .heroLayer1 {
     font-size: 1.8rem;
