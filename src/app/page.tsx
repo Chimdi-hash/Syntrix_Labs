@@ -41,10 +41,8 @@ export default function Home() {
           });
           const prop = JSON.parse(propStr as string);
           
-          // Only show proposals submitted by the connected wallet
-          if (account && prop.submitter === account.toLowerCase()) {
-            fetched.push({ id: i, ...prop });
-          }
+          // Show all proposals, regardless of submitter
+          fetched.push({ id: i, ...prop });
           i++;
         } catch (e) {
           // Breaks the loop when we hit an index that doesn't exist yet
@@ -74,14 +72,14 @@ export default function Home() {
   }, [account]);
 
   useEffect(() => {
-    // Only fetch and poll if the user has connected their wallet
-    if (readClient && contractAddress && account) {
+    // Always fetch proposals if we have readClient and contractAddress
+    if (readClient && contractAddress) {
       fetchProposals();
-      fetchBalance();
+      if (account) fetchBalance();
       // Auto-poll every 5 seconds silently to catch consensus completion
       const interval = setInterval(() => {
         fetchProposals(true);
-        fetchBalance();
+        if (account) fetchBalance();
       }, 5000);
       return () => clearInterval(interval);
     }
@@ -196,63 +194,63 @@ export default function Home() {
       </div>
 
       <div className={styles.dashboard}>
-        {!account ? (
-          <div className="glass-panel animate-slide-up" style={{ textAlign: 'center', padding: '60px', width: '100%', gridColumn: '1 / -1' }}>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '15px' }}>Wallet Connection Required</h2>
-            <p style={{ color: '#a3a3a3', marginBottom: '25px', maxWidth: '600px', margin: '0 auto 25px auto', lineHeight: '1.6' }}>
-              To view active DAO proposals, trigger AI evaluations, or submit your own proposals, you must securely connect your Web3 wallet to the GenLayer network.
-            </p>
-            <button className="btn-primary" onClick={connectWallet} style={{ margin: '0 auto', display: 'block' }}>
-              Connect Wallet to Continue
-            </button>
+        {/* Sidebar / Stats */}
+        <div className={`glass-panel ${styles.sidebarCard} animate-float`}>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>Total Proposals</span>
+            <span className={styles.statValue}>{proposals.length}</span>
           </div>
-        ) : (
-          <>
-            {/* Sidebar / Stats */}
-            <div className={`glass-panel ${styles.sidebarCard} animate-float`}>
-              <div className={styles.stat}>
-                <span className={styles.statLabel}>Active Proposals</span>
-                <span className={styles.statValue}>{proposals.length}</span>
-              </div>
+          
+          {!account ? (
+             <div style={{ marginTop: '30px', textAlign: 'center', padding: '20px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px' }}>
+               <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Join the DAO</h3>
+               <p style={{ color: '#a3a3a3', fontSize: '0.85rem', marginBottom: '15px', lineHeight: '1.5' }}>
+                 Connect your Web3 wallet to submit proposals and trigger AI evaluations.
+               </p>
+               <button className="btn-primary" onClick={connectWallet} style={{ width: '100%' }}>
+                 Connect Wallet
+               </button>
+             </div>
+          ) : (
+            <form className={styles.inputGroup} style={{ marginTop: '30px' }} onSubmit={handleSubmit}>
+              <span className={styles.statLabel}>Submit Proposal</span>
+              <input 
+                className={styles.input} 
+                type="text" 
+                placeholder="Proposal Title" 
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                disabled={loading}
+              />
+              <textarea 
+                className={styles.textarea} 
+                placeholder="Describe your proposal in detail..." 
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                disabled={loading}
+              />
+              <button type="submit" className="btn-primary" style={{ marginTop: '10px' }} disabled={loading}>
+                {loading ? "Submitting..." : "Sign & Submit"}
+              </button>
               
-              <form className={styles.inputGroup} style={{ marginTop: '30px' }} onSubmit={handleSubmit}>
-                <span className={styles.statLabel}>Submit Proposal</span>
-                <input 
-                  className={styles.input} 
-                  type="text" 
-                  placeholder="Proposal Title" 
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  disabled={loading}
-                />
-                <textarea 
-                  className={styles.textarea} 
-                  placeholder="Describe your proposal in detail..." 
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  disabled={loading}
-                />
-                <button type="submit" className="btn-primary" style={{ marginTop: '10px' }} disabled={loading}>
-                  {loading ? "Submitting..." : "Sign & Submit"}
-                </button>
-                
-                {txMessage && (
-                  <div style={{
-                    marginTop: '15px', 
-                    padding: '10px', 
-                    borderRadius: '8px', 
-                    fontSize: '0.85rem',
-                    backgroundColor: txMessage.type === 'success' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(220, 53, 69, 0.1)',
-                    color: txMessage.type === 'success' ? '#2ecc71' : '#dc3545',
-                    border: `1px solid ${txMessage.type === 'success' ? '#2ecc71' : '#dc3545'}`
-                  }}>
-                    {txMessage.text}
-                  </div>
-                )}
-              </form>
-            </div>
+              {txMessage && (
+                <div style={{
+                  marginTop: '15px', 
+                  padding: '10px', 
+                  borderRadius: '8px', 
+                  fontSize: '0.85rem',
+                  backgroundColor: txMessage.type === 'success' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(220, 53, 69, 0.1)',
+                  color: txMessage.type === 'success' ? '#2ecc71' : '#dc3545',
+                  border: `1px solid ${txMessage.type === 'success' ? '#2ecc71' : '#dc3545'}`
+                }}>
+                  {txMessage.text}
+                </div>
+              )}
+            </form>
+          )}
+        </div>
 
-            {/* Proposals List */}
+        {/* Proposals List */}
             <div className={styles.proposalsList}>
               {proposals.length === 0 && !loading && (
                 <div className={`glass-panel ${styles.proposalCard}`} style={{ textAlign: 'center', padding: '40px' }}>
@@ -307,7 +305,7 @@ export default function Home() {
                       </span>
                     )}
                     
-                    {prop.status === 'Pending' && (
+                    {prop.status === 'Pending' && account && (
                       <button className="btn-primary" onClick={() => evaluateProposal(prop.id)} style={{ marginLeft: 'auto' }}>
                         Trigger AI Evaluation
                       </button>
