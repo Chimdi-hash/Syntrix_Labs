@@ -7,7 +7,7 @@ import { studionet } from "genlayer-js/chains";
 
 export default function Home() {
   const [account, setAccount] = useState<string | null>(null);
-  const DEFAULT_CONTRACT = "0x7093c78bb1c6E5958B39AF248537e30e045F1683";
+  const DEFAULT_CONTRACT = "0x44ba14d8926cdc0BD835cA8136406CBd7840b4a9";
   const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || DEFAULT_CONTRACT;
   const [proposals, setProposals] = useState<any[]>([]);
   const [newTitle, setNewTitle] = useState("");

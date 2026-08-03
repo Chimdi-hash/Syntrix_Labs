@@ -48,6 +48,8 @@ class DAOEvaluator(gl.Contract):
             raise Exception("Proposal not found")
         
         proposal = json.loads(self.proposals[proposal_id])
+        if proposal["status"] != "Pending":
+            raise Exception("Proposal has already been evaluated")
         
         # 1. Extract subject for web fetch
         def get_proposal_text() -> str:
@@ -94,7 +96,7 @@ External Web Evidence on Subject '{subject}':
         response = gl.eq_principle.prompt_non_comparative(
             get_evaluation_context,
             task="Based on the Constitution and the External Web Evidence (if any), return a JSON response with two keys: 'decision' ('Approved' or 'Rejected') and 'reasoning' (a short explanation referencing the constitution and the external evidence).",
-            criteria="The result must be a valid JSON object containing exactly 'decision' (either Approved or Rejected) and 'reasoning' (string explanation)."
+            criteria="The result must be a valid JSON object containing exactly 'decision' (either Approved or Rejected) and 'reasoning' (string explanation). The reasoning MUST accurately reference both the constitution and the external evidence to justify the decision, ensuring approval is strictly tied to verified compliance."
         )
         
         # Clean potential markdown from LLM response
@@ -109,36 +111,37 @@ External Web Evidence on Subject '{subject}':
         
         try:
             result = json.loads(clean_response)
-            proposal["status"] = result["decision"]
-            
-            # Payout logic
-            if result["decision"] == "Approved":
-                proposal["payout_status"] = "PAID"
-                try:
-                    # Payout 2 GEN
-                    payable = 2.0
-                    _Recipient(Address(proposal["submitter"])).emit_transfer(value=u256(int(payable * 10**18)), on='finalized')
-                except Exception as e:
-                    proposal["analysis"] = f"Payout failed: {str(e)}\n\n"
-            else:
-                proposal["payout_status"] = "BURNED"
-            
-            # Format the final analysis string for the UI
-            short_evidence = (evidence[:150] + '...') if len(evidence) > 150 else evidence
-            analysis_text = f"Web Fact-Check ({subject}): {short_evidence}\n\nVerdict: {result['reasoning']}"
-            if "analysis" in proposal and proposal["analysis"]:
-                proposal["analysis"] += analysis_text
-            else:
-                proposal["analysis"] = analysis_text
-            
-            # Save the updated proposal back to persistent storage
-            self.proposals[proposal_id] = json.dumps(proposal)
-            return json.dumps(result)
         except Exception as e:
             proposal["status"] = "Error"
             proposal["analysis"] = "Failed to parse AI consensus"
             self.proposals[proposal_id] = json.dumps(proposal)
             return str(e)
+            
+        proposal["status"] = result["decision"]
+        
+        # Payout logic (Atomic Settlement)
+        if result["decision"] == "Approved":
+            proposal["payout_status"] = "PAID"
+            # Payout 2 GEN. If this fails, it raises an exception and reverts the entire transaction.
+            payable = 2.0
+            _Recipient(Address(proposal["submitter"])).emit_transfer(value=u256(int(payable * 10**18)), on='finalized')
+        else:
+            proposal["payout_status"] = "BURNED"
+            # Explicitly burn the 1 GEN deposit by sending it to the null address
+            burn_amount = 1.0
+            _Recipient(Address("0x0000000000000000000000000000000000000000")).emit_transfer(value=u256(int(burn_amount * 10**18)), on='finalized')
+        
+        # Format the final analysis string for the UI
+        short_evidence = (evidence[:150] + '...') if len(evidence) > 150 else evidence
+        analysis_text = f"Web Fact-Check ({subject}): {short_evidence}\n\nVerdict: {result['reasoning']}"
+        if "analysis" in proposal and proposal["analysis"]:
+            proposal["analysis"] += analysis_text
+        else:
+            proposal["analysis"] = analysis_text
+        
+        # Save the updated proposal back to persistent storage
+        self.proposals[proposal_id] = json.dumps(proposal)
+        return json.dumps(result)
 
     @gl.public.view
     def get_proposal(self, proposal_id: u256) -> str:
