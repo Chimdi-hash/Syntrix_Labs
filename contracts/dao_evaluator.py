@@ -62,6 +62,7 @@ class DAOEvaluator(gl.Contract):
         ).strip()
         
         evidence = "No specific external evidence fetched."
+        evidence_found = False
         if subject.lower() != "none" and subject:
             # 2. Fetch evidence non-deterministically
             safe_subject = urllib.parse.quote(subject)
@@ -81,33 +82,41 @@ class DAOEvaluator(gl.Contract):
                 for page_id, page_info in pages.items():
                     if "extract" in page_info and page_info["extract"]:
                         evidence = page_info["extract"]
+                        evidence_found = True
                         break
             except Exception as e:
                 evidence = f"Failed to fetch external evidence: {str(e)}"
         
-        # 3. Final Evaluation based on Evidence
-        def get_evaluation_context() -> str:
-            return f"""Constitution: {self.constitution}
+        # Fail Closed: If we didn't find any verifiable evidence, instantly reject.
+        if not evidence_found:
+            clean_response = json.dumps({
+                "decision": "Rejected",
+                "reasoning": f"Fail closed: No verifiable external evidence could be fetched for the proposal's subject ('{subject}')."
+            })
+        else:
+            # 3. Final Evaluation based on Evidence
+            def get_evaluation_context() -> str:
+                return f"""Constitution: {self.constitution}
 Proposal Title: {proposal['title']}
 Proposal Description: {proposal['description']}
 External Web Evidence on Subject '{subject}':
 {evidence}"""
-        
-        response = gl.eq_principle.prompt_non_comparative(
-            get_evaluation_context,
-            task="Based on the Constitution and the External Web Evidence (if any), return a JSON response with two keys: 'decision' ('Approved' or 'Rejected') and 'reasoning' (a short explanation referencing the constitution and the external evidence).",
-            criteria="The result must be a valid JSON object containing exactly 'decision' (either Approved or Rejected) and 'reasoning' (string explanation). The reasoning MUST accurately reference both the constitution and the external evidence to justify the decision, ensuring approval is strictly tied to verified compliance."
-        )
-        
-        # Clean potential markdown from LLM response
-        clean_response = response.strip()
-        if clean_response.startswith("```json"):
-            clean_response = clean_response[7:]
-        elif clean_response.startswith("```"):
-            clean_response = clean_response[3:]
-        if clean_response.endswith("```"):
-            clean_response = clean_response[:-3]
-        clean_response = clean_response.strip()
+            
+            response = gl.eq_principle.prompt_non_comparative(
+                get_evaluation_context,
+                task="Based on the Constitution and the External Web Evidence (if any), return a JSON response with two keys: 'decision' ('Approved' or 'Rejected') and 'reasoning' (a short explanation referencing the constitution and the external evidence).",
+                criteria="The result must be a valid JSON object containing exactly 'decision' (either Approved or Rejected) and 'reasoning' (string explanation). The reasoning MUST accurately reference both the constitution and the external evidence to justify the decision, ensuring approval is strictly tied to verified compliance."
+            )
+            
+            # Clean potential markdown from LLM response
+            clean_response = response.strip()
+            if clean_response.startswith("```json"):
+                clean_response = clean_response[7:]
+            elif clean_response.startswith("```"):
+                clean_response = clean_response[3:]
+            if clean_response.endswith("```"):
+                clean_response = clean_response[:-3]
+            clean_response = clean_response.strip()
         
         try:
             result = json.loads(clean_response)
